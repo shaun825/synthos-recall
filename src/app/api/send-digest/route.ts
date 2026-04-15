@@ -4,6 +4,8 @@ import { getNextChunk, advanceCursor, isDueForDigest } from "@/lib/cursor";
 import { generateDigest } from "@/lib/digest";
 import { sendDigestEmail } from "@/lib/mailer";
 
+export const dynamic = "force-dynamic";
+
 // This route can be called by a cron job or manually for testing
 export async function POST(req: NextRequest) {
   try {
