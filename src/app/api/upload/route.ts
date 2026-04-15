@@ -3,12 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { chunkText } from "@/lib/chunker";
 import pdf from "pdf-parse";
 
-export const config = {
-  api: {
-    bodyParser: false
-  }
-};
-
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
