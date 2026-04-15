@@ -5,6 +5,7 @@ import { getNextChunk, advanceCursor } from "@/lib/cursor";
 import { generateDigest } from "@/lib/digest";
 import { sendDigestEmail } from "@/lib/mailer";
 
+export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
