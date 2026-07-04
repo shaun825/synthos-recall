@@ -60,6 +60,9 @@ model DigestLog {
   instance      Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   chunkIndex    Int
   emailSubject  String
+  reviewToken   String    @unique @default(cuid())
+  keyPoints     String?   @db.Text
+  recallQuestions String? @db.Text
   sentAt        DateTime  @default(now())
   status        String    @default("sent")
 }
@@ -78,6 +81,8 @@ enum InstanceType {
 
 enum SourceType {
   PDF
+  DOCX
+  TEXT
   NOTION
   MANUAL
 }
