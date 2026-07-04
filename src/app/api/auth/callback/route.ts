@@ -6,11 +6,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
-  const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type");
+  const code = searchParams.get("code");
 
-  const response = NextResponse.redirect(`${origin}/dashboard`);
+  const successResponse = NextResponse.redirect(`${origin}/dashboard`);
+  const errorResponse = (msg: string) =>
+    NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(msg)}`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            successResponse.cookies.set(name, value, options);
           });
         }
       }
@@ -33,7 +35,6 @@ export async function GET(req: NextRequest) {
   let authError = null;
 
   if (token_hash && type) {
-    // Handle token hash flow (magic link clicked from email)
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash,
       type: type as any
@@ -41,33 +42,32 @@ export async function GET(req: NextRequest) {
     user = data?.user;
     authError = error;
   } else if (code) {
-    // Handle PKCE code exchange flow
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     user = data?.user;
     authError = error;
   } else {
-    return NextResponse.redirect(`${origin}/login?error=no_token`);
+    return errorResponse("no_token");
   }
 
   if (authError || !user) {
-    console.error("Auth error:", authError?.message);
-    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(authError?.message || "unknown")}`);
+    return errorResponse(authError?.message || "auth_failed");
   }
 
-  // Upsert user in database
+  // Upsert user — handle both new and existing users gracefully
   try {
     await prisma.user.upsert({
       where: { email: user.email! },
-      update: {},
+      update: { id: user.id },
       create: {
         id: user.id,
         email: user.email!,
         plan: "FREE"
       }
     });
-  } catch (dbError) {
-    console.error("DB upsert error:", dbError);
+  } catch (dbError: any) {
+    // Non-fatal — user can still access dashboard even if DB sync fails
+    console.error("DB upsert error:", dbError?.message);
   }
 
-  return response;
+  return successResponse;
 }
