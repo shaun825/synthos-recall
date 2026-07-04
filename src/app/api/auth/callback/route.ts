@@ -7,10 +7,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-
-  if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=no_code`);
-  }
+  const token_hash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
 
   const response = NextResponse.redirect(`${origin}/dashboard`);
 
@@ -31,21 +29,39 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  let user = null;
+  let authError = null;
 
-  if (error || !data.user) {
-    console.error("Auth callback error:", error?.message);
-    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error?.message || "unknown")}`);
+  if (token_hash && type) {
+    // Handle token hash flow (magic link clicked from email)
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash,
+      type: type as any
+    });
+    user = data?.user;
+    authError = error;
+  } else if (code) {
+    // Handle PKCE code exchange flow
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    user = data?.user;
+    authError = error;
+  } else {
+    return NextResponse.redirect(`${origin}/login?error=no_token`);
   }
 
-  // Upsert user in our database
+  if (authError || !user) {
+    console.error("Auth error:", authError?.message);
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(authError?.message || "unknown")}`);
+  }
+
+  // Upsert user in database
   try {
     await prisma.user.upsert({
-      where: { email: data.user.email! },
+      where: { email: user.email! },
       update: {},
       create: {
-        id: data.user.id,
-        email: data.user.email!,
+        id: user.id,
+        email: user.email!,
         plan: "FREE"
       }
     });
