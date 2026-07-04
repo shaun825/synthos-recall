@@ -58,6 +58,7 @@ export default function DashboardPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const router = useRouter();
 
   const supabase = createBrowserClient(
@@ -67,20 +68,35 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
+      // Use getSession first — reads directly from cookie
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        // Try once more after a short delay to allow cookie to settle
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: { session: retrySession } } = await supabase.auth.getSession();
+
+        if (!retrySession?.user) {
+          router.push("/login");
+          return;
+        }
+
+        setUserEmail(retrySession.user.email || "");
+        setUserId(retrySession.user.id);
+        await fetchInstances(retrySession.user.id);
+      } else {
+        setUserEmail(session.user.email || "");
+        setUserId(session.user.id);
+        await fetchInstances(session.user.id);
       }
-      setUserEmail(user.email || "");
-      await fetchInstances(user.id);
+
       setLoading(false);
     };
     init();
   }, []);
 
-  const fetchInstances = async (userId: string) => {
-    const res = await fetch(`/api/instances?userId=${userId}`);
+  const fetchInstances = async (uid: string) => {
+    const res = await fetch(`/api/instances?userId=${uid}`);
     if (res.ok) {
       const data = await res.json();
       setInstances(data.instances);
