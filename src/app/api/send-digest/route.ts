@@ -6,10 +6,8 @@ import { sendDigestEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
-// This route can be called by a cron job or manually for testing
 export async function POST(req: NextRequest) {
   try {
-    // Verify this is an internal call using a shared secret
     const authHeader = req.headers.get("authorization");
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,13 +20,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "instanceId required" }, { status: 400 });
     }
 
-    // Check if this instance is due for a digest
     const due = await isDueForDigest(instanceId);
     if (!due) {
       return NextResponse.json({ skipped: true, reason: "Not due yet" });
     }
 
-    // Get the next chunk for this instance
     const result = await getNextChunk(instanceId);
     if (!result || !result.chunk) {
       return NextResponse.json({ skipped: true, reason: "No chunk available" });
@@ -36,7 +32,6 @@ export async function POST(req: NextRequest) {
 
     const { instance, chunk } = result;
 
-    // Get the user's email
     const user = await prisma.user.findUnique({
       where: { id: instance.userId }
     });
@@ -45,7 +40,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Generate the digest using Claude Haiku
     const digest = await generateDigest(
       instance.name,
       chunk.content,
@@ -53,28 +47,36 @@ export async function POST(req: NextRequest) {
       instance.totalChunks
     );
 
-    // Send the email via SES
-    await sendDigestEmail({
-      toEmail: user.email,
-      instanceName: instance.name,
-      chunkIndex: chunk.index,
-      totalChunks: instance.totalChunks,
-      digest
-    });
-
-    // Advance the cursor (restarts automatically if at end and isActive)
-    const cursorResult = await advanceCursor(instanceId);
-
-    // Log the send
-    await prisma.digestLog.create({
+    // Create the digest log first to get the reviewToken
+    const log = await prisma.digestLog.create({
       data: {
         userId: user.id,
         instanceId: instance.id,
         chunkIndex: chunk.index,
         emailSubject: digest.subject,
-        status: "sent"
+        keyPoints: JSON.stringify(digest.keyPoints),
+        recallQuestions: JSON.stringify(digest.recallQuestions),
+        status: "sending"
       }
     });
+
+    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/review/${log.reviewToken}`;
+
+    await sendDigestEmail({
+      toEmail: user.email,
+      instanceName: instance.name,
+      chunkIndex: chunk.index,
+      totalChunks: instance.totalChunks,
+      digest,
+      reviewUrl
+    });
+
+    await prisma.digestLog.update({
+      where: { id: log.id },
+      data: { status: "sent" }
+    });
+
+    const cursorResult = await advanceCursor(instanceId);
 
     return NextResponse.json({
       success: true,
@@ -82,37 +84,11 @@ export async function POST(req: NextRequest) {
       chunkIndex: chunk.index,
       totalChunks: instance.totalChunks,
       restarted: cursorResult.restarted,
-      emailSentTo: user.email
+      emailSentTo: user.email,
+      reviewUrl
     });
   } catch (error) {
     console.error("Send digest error:", error);
-    return NextResponse.json(
-      { error: "Failed to send digest" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to send digest" }, { status: 500 });
   }
-}
-
-// GET endpoint for testing a specific instance manually
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const instanceId = searchParams.get("instanceId");
-  const secret = searchParams.get("secret");
-
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!instanceId) {
-    return NextResponse.json({ error: "instanceId required" }, { status: 400 });
-  }
-
-  // Reuse POST logic by forwarding
-  const mockReq = new Request(`${req.url}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${process.env.CRON_SECRET}`, "content-type": "application/json" },
-    body: JSON.stringify({ instanceId })
-  });
-
-  return POST(mockReq as NextRequest);
 }
