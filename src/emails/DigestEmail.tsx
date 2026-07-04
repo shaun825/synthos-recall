@@ -1,5 +1,6 @@
 import {
   Body,
+  Button,
   Container,
   Head,
   Heading,
@@ -19,13 +20,15 @@ interface DigestEmailProps {
   totalChunks: number;
   digest: DigestResult;
   userEmail: string;
+  reviewUrl: string;
 }
 
 export function DigestEmail({
   instanceName,
   chunkIndex,
   totalChunks,
-  digest
+  digest,
+  reviewUrl
 }: DigestEmailProps) {
   const progressPercent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
 
@@ -36,7 +39,6 @@ export function DigestEmail({
       <Body style={styles.body}>
         <Container style={styles.container}>
 
-          {/* Header */}
           <Section style={styles.header}>
             <Text style={styles.logo}>Recall</Text>
             <Text style={styles.headerMeta}>
@@ -44,21 +46,15 @@ export function DigestEmail({
             </Text>
           </Section>
 
-          {/* Progress bar */}
           <Section style={styles.progressSection}>
-            <Row>
-              <Column>
-                <Text style={styles.progressLabel}>{progressPercent}% through your material</Text>
-                <div style={styles.progressBarBg}>
-                  <div style={{ ...styles.progressBarFill, width: `${progressPercent}%` }} />
-                </div>
-              </Column>
-            </Row>
+            <Text style={styles.progressLabel}>{progressPercent}% through your material</Text>
+            <div style={styles.progressBarBg}>
+              <div style={{ ...styles.progressBarFill, width: `${progressPercent}%` }} />
+            </div>
           </Section>
 
           <Hr style={styles.divider} />
 
-          {/* Summary */}
           <Section style={styles.section}>
             <Heading style={styles.sectionTitle}>Summary</Heading>
             <Text style={styles.summaryText}>{digest.summary}</Text>
@@ -66,7 +62,6 @@ export function DigestEmail({
 
           <Hr style={styles.divider} />
 
-          {/* Key points */}
           {digest.keyPoints.length > 0 && (
             <Section style={styles.section}>
               <Heading style={styles.sectionTitle}>Key points</Heading>
@@ -85,7 +80,6 @@ export function DigestEmail({
 
           <Hr style={styles.divider} />
 
-          {/* Recall questions */}
           {digest.recallQuestions.length > 0 && (
             <Section style={styles.section}>
               <Heading style={styles.sectionTitle}>Test yourself</Heading>
@@ -97,12 +91,14 @@ export function DigestEmail({
                   {i + 1}. {question}
                 </Text>
               ))}
+              <Button style={styles.reviewButton} href={reviewUrl}>
+                Open flashcards →
+              </Button>
             </Section>
           )}
 
           <Hr style={styles.divider} />
 
-          {/* Footer */}
           <Section style={styles.footer}>
             <Text style={styles.footerText}>
               ~{digest.estimatedReadMinutes} min read · Recall daily digest
@@ -132,46 +128,20 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     border: "1px solid #e8e8e4"
   },
-  header: {
-    padding: "28px 32px 20px"
-  },
-  logo: {
-    fontSize: "20px",
-    fontWeight: "500",
-    color: "#1D9E75",
-    margin: "0 0 4px"
-  },
-  headerMeta: {
-    fontSize: "13px",
-    color: "#888",
-    margin: "0"
-  },
-  progressSection: {
-    padding: "0 32px 20px"
-  },
-  progressLabel: {
-    fontSize: "12px",
-    color: "#aaa",
-    margin: "0 0 6px"
-  },
+  header: { padding: "28px 32px 20px" },
+  logo: { fontSize: "20px", fontWeight: "500", color: "#1D9E75", margin: "0 0 4px" },
+  headerMeta: { fontSize: "13px", color: "#888", margin: "0" },
+  progressSection: { padding: "0 32px 20px" },
+  progressLabel: { fontSize: "12px", color: "#aaa", margin: "0 0 6px" },
   progressBarBg: {
     backgroundColor: "#f0f0ec",
     borderRadius: "4px",
     height: "4px",
     overflow: "hidden"
   },
-  progressBarFill: {
-    backgroundColor: "#1D9E75",
-    height: "4px",
-    borderRadius: "4px"
-  },
-  divider: {
-    borderColor: "#f0f0ec",
-    margin: "0"
-  },
-  section: {
-    padding: "24px 32px"
-  },
+  progressBarFill: { backgroundColor: "#1D9E75", height: "4px", borderRadius: "4px" },
+  divider: { borderColor: "#f0f0ec", margin: "0" },
+  section: { padding: "24px 32px" },
   sectionTitle: {
     fontSize: "11px",
     fontWeight: "500",
@@ -180,57 +150,25 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "0.08em",
     margin: "0 0 14px"
   },
-  summaryText: {
-    fontSize: "15px",
-    lineHeight: "1.7",
-    color: "#2c2c2a",
-    margin: "0"
-  },
-  bulletRow: {
-    marginBottom: "8px"
-  },
-  bulletDot: {
-    width: "16px",
-    paddingTop: "2px"
-  },
-  dot: {
-    fontSize: "18px",
-    color: "#1D9E75",
-    margin: "0",
-    lineHeight: "1.5"
-  },
-  bulletText: {
+  summaryText: { fontSize: "15px", lineHeight: "1.7", color: "#2c2c2a", margin: "0" },
+  bulletRow: { marginBottom: "8px" },
+  bulletDot: { width: "16px", paddingTop: "2px" },
+  dot: { fontSize: "18px", color: "#1D9E75", margin: "0", lineHeight: "1.5" },
+  bulletText: { fontSize: "14px", lineHeight: "1.6", color: "#2c2c2a", margin: "0" },
+  recallIntro: { fontSize: "13px", color: "#888", margin: "0 0 12px", fontStyle: "italic" },
+  question: { fontSize: "14px", lineHeight: "1.6", color: "#2c2c2a", margin: "0 0 10px" },
+  reviewButton: {
+    display: "inline-block",
+    marginTop: "16px",
+    padding: "10px 20px",
+    backgroundColor: "#1D9E75",
+    color: "#ffffff",
+    borderRadius: "6px",
     fontSize: "14px",
-    lineHeight: "1.6",
-    color: "#2c2c2a",
-    margin: "0"
+    fontWeight: "500",
+    textDecoration: "none"
   },
-  recallIntro: {
-    fontSize: "13px",
-    color: "#888",
-    margin: "0 0 12px",
-    fontStyle: "italic"
-  },
-  question: {
-    fontSize: "14px",
-    lineHeight: "1.6",
-    color: "#2c2c2a",
-    margin: "0 0 10px",
-    paddingLeft: "4px"
-  },
-  footer: {
-    padding: "20px 32px 28px",
-    backgroundColor: "#f9f9f7"
-  },
-  footerText: {
-    fontSize: "12px",
-    color: "#aaa",
-    margin: "0 0 8px"
-  },
-  footerMeta: {
-    fontSize: "11px",
-    color: "#bbb",
-    lineHeight: "1.5",
-    margin: "0"
-  }
+  footer: { padding: "20px 32px 28px", backgroundColor: "#f9f9f7" },
+  footerText: { fontSize: "12px", color: "#aaa", margin: "0 0 8px" },
+  footerMeta: { fontSize: "11px", color: "#bbb", lineHeight: "1.5", margin: "0" }
 };
