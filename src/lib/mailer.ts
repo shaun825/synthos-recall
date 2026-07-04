@@ -17,6 +17,7 @@ interface SendDigestEmailParams {
   chunkIndex: number;
   totalChunks: number;
   digest: DigestResult;
+  reviewUrl: string;
 }
 
 export async function sendDigestEmail({
@@ -24,7 +25,8 @@ export async function sendDigestEmail({
   instanceName,
   chunkIndex,
   totalChunks,
-  digest
+  digest,
+  reviewUrl
 }: SendDigestEmailParams): Promise<void> {
   const html = await render(
     DigestEmail({
@@ -32,26 +34,17 @@ export async function sendDigestEmail({
       chunkIndex,
       totalChunks,
       digest,
-      userEmail: toEmail
+      userEmail: toEmail,
+      reviewUrl
     })
   );
 
   const command = new SendEmailCommand({
     Source: process.env.SES_FROM_EMAIL!,
-    Destination: {
-      ToAddresses: [toEmail]
-    },
+    Destination: { ToAddresses: [toEmail] },
     Message: {
-      Subject: {
-        Data: digest.subject,
-        Charset: "UTF-8"
-      },
-      Body: {
-        Html: {
-          Data: html,
-          Charset: "UTF-8"
-        }
-      }
+      Subject: { Data: digest.subject, Charset: "UTF-8" },
+      Body: { Html: { Data: html, Charset: "UTF-8" } }
     }
   });
 
