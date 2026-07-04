@@ -30,7 +30,7 @@ export default function AuthCallbackPage() {
           } catch (e) {
             console.error("User sync error:", e);
           }
-          router.replace("/dashboard");
+          window.location.href = "/dashboard";
         } else if (event === "SIGNED_OUT") {
           router.replace("/login");
         }
