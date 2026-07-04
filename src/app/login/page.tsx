@@ -22,6 +22,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        shouldCreateUser: true,
         emailRedirectTo: "https://dailyrecalldigest.com/api/auth/callback"
       }
     });
