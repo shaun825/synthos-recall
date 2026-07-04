@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 
 interface Instance {
@@ -47,7 +47,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       className={`relative w-9 h-5 rounded-full transition-colors ${checked ? "bg-brand-500" : "bg-gray-200"}`}
     >
       <span
-        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${checked ? "left-4.5" : "left-0.5"}`}
+        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all"
         style={{ left: checked ? "18px" : "2px" }}
       />
     </button>
@@ -57,8 +57,13 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
 export default function DashboardPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState("");
   const router = useRouter();
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -67,12 +72,12 @@ export default function DashboardPage() {
         router.push("/login");
         return;
       }
-      setUser(user);
+      setUserEmail(user.email || "");
       await fetchInstances(user.id);
       setLoading(false);
     };
     init();
-  }, [router]);
+  }, []);
 
   const fetchInstances = async (userId: string) => {
     const res = await fetch(`/api/instances?userId=${userId}`);
@@ -124,14 +129,12 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-10">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-xl font-medium text-gray-900">
               Re<span className="text-brand-500">call</span>
             </h1>
-            <p className="text-sm text-gray-400 mt-0.5">{user?.email}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{userEmail}</p>
           </div>
           <button
             onClick={handleSignOut}
@@ -141,7 +144,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
             { label: "Active instances", value: activeCount },
@@ -155,7 +157,6 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Instance cards */}
         <div className="space-y-3 mb-4">
           {instances.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
@@ -169,21 +170,17 @@ export default function DashboardPage() {
                 className={`bg-white rounded-xl border border-gray-100 p-4 transition-opacity ${!instance.isActive ? "opacity-50" : ""}`}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <TypeBadge type={instance.type} />
-                  </div>
+                  <TypeBadge type={instance.type} />
                   <Toggle
                     checked={instance.isActive}
                     onChange={() => toggleInstance(instance.id, instance.isActive)}
                   />
                 </div>
-
                 <p className="text-sm font-medium text-gray-900 mb-1">{instance.name}</p>
                 <p className="text-xs text-gray-400 mb-3">
                   {instance.sourceType === "PDF" ? "PDF upload" : instance.sourceType} ·{" "}
                   {instance.cadenceDays === 1 ? "Daily" : `Every ${instance.cadenceDays} days`}
                 </p>
-
                 <div className="mb-2">
                   <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Progress</span>
@@ -191,7 +188,6 @@ export default function DashboardPage() {
                   </div>
                   <ProgressBar value={progressPercent(instance)} />
                 </div>
-
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
                   <span>{instance.isActive ? "Active" : "Paused"}</span>
                   <span>{daysLeft(instance)}</span>
@@ -201,14 +197,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Add new instance button */}
         <button
           onClick={() => router.push("/dashboard/new")}
           className="w-full py-3 border border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
         >
           + Add instance — upload PDF or connect Notion
         </button>
-
       </div>
     </main>
   );
